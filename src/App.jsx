@@ -3661,13 +3661,23 @@ function App() {
                 </label>
                 <label className="space-y-2 text-sm">
                   <span className={`${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Password</span>
-                  <input
-                    type="password"
-                    value={profileForm.password}
-                    onChange={(event) => setProfileForm((prev) => ({ ...prev, password: event.target.value }))}
-                    className={`w-full rounded-2xl border px-3 py-2.5 text-sm outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
-                    placeholder="Create password"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={profileForm.password}
+                      onChange={(event) => setProfileForm((prev) => ({ ...prev, password: event.target.value }))}
+                      className={`w-full rounded-2xl border px-3 py-2.5 pr-10 text-sm outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                      placeholder="Create password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 ${isDarkMode ? 'text-slate-300' : ''}`}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </label>
               </div>
 
