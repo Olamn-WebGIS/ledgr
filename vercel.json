@@ -1,16 +1,25 @@
 {
   "version": 2,
-  "buildCommand": "npm --prefix backend ci && npm run build",
+  "builds": [
+    {
+      "src": "api/[...slug].ts",
+      "use": "@vercel/node"
+    }
+  ],
   "installCommand": "npm install --include=dev",
-  
+  "buildCommand": "npm --prefix backend ci --include=dev && npm run build",
+
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "dest": "/api/[...slug].js"
     },
     {
-      "src": "/(.*)",
-      "dest": "/$1"
+      "handle": "filesystem"
+    },
+    {
+      "src": "(.*)",
+      "dest": "/index.html"
     }
   ]
 }
