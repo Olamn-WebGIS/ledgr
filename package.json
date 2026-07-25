@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "./node_modules/.bin/vite",
     "build:backend": "npm --workspace=backend run build",
-    "build:frontend": "./node_modules/.bin/vite build",
+    "build:frontend": "node -e \"(async()=>{const {build}=await import('vite');await build();})()\"",
     "build": "npm run build:backend && npm run build:frontend",
     "vercel-build": "npm run build",
     "preview": "./node_modules/.bin/vite preview"
