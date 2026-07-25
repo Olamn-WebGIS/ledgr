@@ -71,9 +71,24 @@ async function getAuthenticatedHeaders() {
 // Wrapper that injects auth headers into API requests
 async function apiFetch(url, options = {}) {
   const headers = await getAuthenticatedHeaders();
-  options.headers = { ...(options.headers || {}), ...headers };
+  options.headers = { Accept: 'application/json', ...(options.headers || {}), ...headers };
   return fetch(url, options);
 }
+
+async function parseJsonResponse(response) {
+  const text = await response.text();
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    const snippet = text.replace(/\s+/g, ' ').slice(0, 200);
+    throw new Error(`Expected JSON response from ${response.url} but got: ${snippet}`);
+  }
+}
+
 const fallbackTrendData = [
   { day: 'Mon', revenue: 0, cogs: 0, netProfit: 0 },
   { day: 'Tue', revenue: 0, cogs: 0, netProfit: 0 },
@@ -1583,8 +1598,11 @@ function App() {
           }),
         });
 
-        const createAccountResult = await createAccountResponse.json();
-        if (!createAccountResponse.ok || !createAccountResult?.success) {
+        const createAccountResult = await parseJsonResponse(createAccountResponse);
+        if (!createAccountResponse.ok) {
+          throw new Error(createAccountResult?.error || `Signup failed with status ${createAccountResponse.status}`);
+        }
+        if (!createAccountResult?.success) {
           throw new Error(createAccountResult?.error || 'Unable to create your account in Supabase.');
         }
 
