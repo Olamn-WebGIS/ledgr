@@ -37,6 +37,8 @@ import {
   TrendingDown,
   TrendingUp,
   UserRound,
+  Eye,
+  EyeOff,
   X,
   Zap,
 } from 'lucide-react';
@@ -149,6 +151,7 @@ function App() {
   const [customDateStart, setCustomDateStart] = useState('');
   const [customDateEnd, setCustomDateEnd] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedAction, setSelectedAction] = useState('sale');
   const [activeView, setActiveView] = useState('dashboard');
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -1506,7 +1509,7 @@ function App() {
     businessName: profileForm.businessName.trim(),
     currency: profileForm.currency || 'USD',
     operatingExpenses: Number(expenseTotal || profileForm.operatingExpenses || 0),
-    password: profileForm.password.trim() || profile?.password || '',
+    password: profileForm.password || profile?.password || '',
     language: profileForm.language || 'en',
     dateFormat: profileForm.dateFormat || 'MM/DD/YYYY',
     numberFormat: profileForm.numberFormat || 'commas',
@@ -1534,7 +1537,7 @@ function App() {
     const firstName = profileForm.firstName.trim();
     const surname = profileForm.surname.trim();
     const email = profileForm.email.trim();
-    const password = profileForm.password.trim();
+    const password = profileForm.password;
 
     if (!firstName || !surname) {
       setProfileMessage('Please add both your first name and surname.');
@@ -1821,7 +1824,7 @@ function App() {
 
     setSubmitting(true);
     const email = profileForm.email.trim().toLowerCase();
-    const password = profileForm.password.trim();
+    const password = profileForm.password;
     const firstName = profileForm.firstName.trim();
     const surname = profileForm.surname.trim();
 
@@ -1925,7 +1928,7 @@ function App() {
 
     setSubmitting(true);
     const email = profileForm.email.trim().toLowerCase();
-    const password = profileForm.password.trim();
+    const password = profileForm.password;
 
     if (!email || !password) {
       setProfileMessage('Please enter your email and password to log in.');
@@ -2886,12 +2889,20 @@ function App() {
                         <div className="relative">
                           <KeyRound size={15} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
                           <input
-                            type="password"
+                            type={showPassword ? 'text' : 'password'}
                             value={profileForm.password}
                             onChange={(event) => setProfileForm((prev) => ({ ...prev, password: event.target.value }))}
-                            className={`w-full rounded-2xl border py-2.5 pl-9 pr-3 text-sm outline-none ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-700'}`}
+                            className={`w-full rounded-2xl border py-2.5 pl-9 pr-10 text-sm outline-none ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-700'}`}
                             placeholder={profile ? 'Leave blank to keep current password' : 'Create password'}
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((s) => !s)}
+                            className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 ${isDarkMode ? 'text-slate-300' : ''}`}
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
                         </div>
                       </label>
                     </div>
