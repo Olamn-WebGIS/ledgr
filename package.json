@@ -7,12 +7,12 @@
     "backend"
   ],
   "scripts": {
-    "dev": "node node_modules/vite/bin/vite.js",
+    "dev": "npx vite",
     "build:backend": "npm --workspace=backend run build",
-    "build:frontend": "node node_modules/vite/bin/vite.js build",
+    "build:frontend": "npx vite build",
     "build": "npm run build:backend && npm run build:frontend",
     "vercel-build": "npm run build",
-    "preview": "node node_modules/vite/bin/vite.js preview"
+    "preview": "npx vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
