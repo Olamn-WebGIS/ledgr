@@ -3,6 +3,7 @@
   "short_name": "Ledgr",
   "description": "Ledgr brings your sales, stock movement, and profitability into one clear view.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#001f3f",

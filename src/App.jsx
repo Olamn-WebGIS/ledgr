@@ -227,6 +227,8 @@ function App() {
   const [authMode, setAuthMode] = useState('signup'); // 'signup' or 'login'
   const [profileMessage, setProfileMessage] = useState('');
   const [securityMessage, setSecurityMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastVariant, setToastVariant] = useState('success');
   const [settingsTab, setSettingsTab] = useState('profile');
   const [availableProducts, setAvailableProducts] = useState([]);
   const [activeActionMenuId, setActiveActionMenuId] = useState(null);
@@ -235,6 +237,7 @@ function App() {
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [expenseForm, setExpenseForm] = useState({ category: '', amount: '', date: '' });
   const [inventoryProductFilter, setInventoryProductFilter] = useState('all');
+  const [productSuggestionsOpen, setProductSuggestionsOpen] = useState(false);
   const [installPromptEvent, setInstallPromptEvent] = useState(null);
   const [showInstallHint, setShowInstallHint] = useState(false);
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
@@ -298,7 +301,6 @@ function App() {
 
       if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(() => {
-          setSecurityMessage('Service worker ready for notifications.');
         }).catch(() => {
           setSecurityMessage('Service worker not available.');
         });
@@ -331,6 +333,23 @@ function App() {
 
     return Notification.requestPermission();
   };
+
+  const showToast = (message, variant = 'success') => {
+    setToastMessage(message);
+    setToastVariant(variant);
+  };
+
+  useEffect(() => {
+    if (!toastMessage) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setToastMessage('');
+    }, 4500);
+
+    return () => window.clearTimeout(timer);
+  }, [toastMessage]);
 
   const registerServiceWorker = async () => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
@@ -748,6 +767,12 @@ function App() {
       setShowInstallHint(true);
     };
 
+    const handleDeferredPromptReady = () => {
+      if (typeof window !== 'undefined' && window.deferredInstallPrompt) {
+        handleBeforeInstallPrompt(window.deferredInstallPrompt);
+      }
+    };
+
     const handleAppInstalled = () => {
       setIsPwaInstalled(true);
       setShowInstallHint(false);
@@ -755,17 +780,23 @@ function App() {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('deferredinstallprompt-ready', handleDeferredPromptReady);
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
-      setIsPwaInstalled(true);
-      setShowInstallHint(false);
+    if (typeof window !== 'undefined') {
+      handleDeferredPromptReady();
+
+      if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+        setIsPwaInstalled(true);
+        setShowInstallHint(false);
+      }
     }
 
     registerServiceWorker();
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('deferredinstallprompt-ready', handleDeferredPromptReady);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
@@ -841,6 +872,42 @@ function App() {
       // Ignore refresh failures and keep the current UI state.
     }
   };
+
+  const refreshCurrentView = async () => {
+    if (activeView === 'dashboard' || activeView === 'pnl') {
+      await refreshDashboard();
+    } else if (activeView === 'inventory') {
+      await loadProducts();
+    } else if (activeView === 'expenses') {
+      await loadExpenses();
+    }
+  };
+
+  useEffect(() => {
+    refreshCurrentView();
+  }, [activeView]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshCurrentView();
+      }
+    };
+
+    const handleWindowFocus = () => {
+      refreshCurrentView();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('pageshow', handleWindowFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('pageshow', handleWindowFocus);
+    };
+  }, [activeView, expenseTotal, profileForm.operatingExpenses, profile?.operatingExpenses]);
 
   const closeInventoryModal = () => {
     setShowInventoryModal(false);
@@ -1638,7 +1705,7 @@ function App() {
           lastLoginAt: nextProfile.lastLoginAt,
         }));
         setShowOnboarding(false);
-        setProfileMessage('Profile created in Supabase.');
+        setProfileMessage('Profile created successfully.');
         return;
       } catch (err) {
         setProfileMessage(err.message || 'Unable to save profile to Supabase.');
@@ -2017,7 +2084,7 @@ function App() {
           }));
           persistGuestWorkspace({ profile: mergedProfile, expenses: Array.isArray(workspaceData.expenses) ? workspaceData.expenses : expenseEntries, inventoryMeta: workspaceData.inventory_meta || readInventoryMeta(), mode: 'authenticated' });
           setExpenseEntries(Array.isArray(workspaceData.expenses) ? workspaceData.expenses : expenseEntries);
-          setSecurityMessage('Workspace synced from Supabase.');
+          setSecurityMessage('Workspace synced.');
         } else {
           persistGuestWorkspace({ profile: syncedProfile, expenses: expenseEntries, inventoryMeta: readInventoryMeta(), mode: 'authenticated' });
           setProfile(syncedProfile);
@@ -2025,7 +2092,12 @@ function App() {
         }
       }
 
-      setProfileMessage('Welcome back â€” your workspace is now synced.');
+      setProfileMessage('');
+      showToast('Workspace synced successfully.', 'success');
+      showBrowserNotification(
+        'Workspace synced',
+        `Welcome back${syncedProfile?.firstName ? `, ${syncedProfile.firstName}` : ''}! Your workspace is now synced and ready.`
+      );
       setShowOnboarding(false);
       setShowAuthModal(false);
     } catch (err) {
@@ -3708,6 +3780,21 @@ function App() {
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.2),_transparent_35%),linear-gradient(135deg,#020617_0%,#0f172a_100%)] text-slate-100' : 'bg-[radial-gradient(circle_at_top_left,_rgba(129,140,248,0.15),_transparent_35%),linear-gradient(135deg,#f8fafc_0%,#e2e8f0_100%)] text-slate-800'}`}>
+      {toastMessage ? (
+        <div className={`fixed right-4 top-4 z-50 max-w-sm rounded-3xl border px-4 py-3 shadow-2xl ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-white text-slate-900'}`}>
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5">
+              <Zap size={18} className={toastVariant === 'success' ? 'text-emerald-400' : 'text-indigo-500'} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">{toastMessage}</p>
+            </div>
+            <button type="button" onClick={() => setToastMessage('')} className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-100">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-3 py-3 sm:px-6 lg:flex-row lg:gap-6 lg:px-8 lg:py-8">
         <aside className={`hidden rounded-3xl border p-4 shadow-2xl backdrop-blur lg:sticky lg:top-6 lg:block lg:h-fit lg:w-72 lg:p-5 ${isDarkMode ? 'border-slate-800/80 bg-slate-900/70 shadow-slate-950/40' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
           <div className="flex items-center gap-3">
@@ -3865,22 +3952,46 @@ function App() {
                     {error}
                   </div>
                 ) : null}
-                <div className="space-y-1">
+                <div className="relative space-y-1">
                   <input
-                    list="product-options"
-                    className={`w-full rounded-xl border px-3 py-2.5 text-[11px] outline-none placeholder:text-slate-500 ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-200 bg-white text-slate-700'}`}
+                    type="text"
+                    className={`w-full rounded-xl border px-3 py-2.5 text-base sm:text-sm outline-none placeholder:text-slate-500 ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-200 bg-white text-slate-700'}`}
                     placeholder="Enter Product name or choose an existing product"
                     value={formState.productId}
                     onChange={(e) => {
                       setError('');
                       setFormState((prev) => ({ ...prev, productId: e.target.value }));
+                      setProductSuggestionsOpen(true);
                     }}
+                    onFocus={() => setProductSuggestionsOpen(true)}
+                    onBlur={() => setTimeout(() => setProductSuggestionsOpen(false), 150)}
+                    autoComplete="off"
                   />
-                  <datalist id="product-options">
-                    {availableProducts.map((product) => (
-                      <option key={product.id} value={product.name} />
-                    ))}
-                  </datalist>
+                  {productSuggestionsOpen && availableProducts.length > 0 ? (
+                    <div className={`absolute inset-x-0 top-full z-30 mt-2 min-w-full max-h-56 overflow-y-auto rounded-3xl border px-1 py-1 shadow-2xl ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-white text-slate-900'}`}>
+                      {availableProducts
+                        .filter((product) => {
+                          const name = String(product?.name || product?.product_name || product?.productName || '').toLowerCase();
+                          const query = String(formState.productId || '').toLowerCase().trim();
+                          return query === '' || name.includes(query);
+                        })
+                        .slice(0, 8)
+                        .map((product) => (
+                          <button
+                            key={product.id}
+                            type="button"
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              setFormState((prev) => ({ ...prev, productId: product.name || '' }));
+                              setProductSuggestionsOpen(false);
+                            }}
+                            className={`w-full rounded-2xl px-3 py-2 text-left text-sm transition ${isDarkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}
+                          >
+                            {product.name}
+                          </button>
+                        ))}
+                    </div>
+                  ) : null}
                 </div>
                 <input
                   className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none placeholder:text-slate-500 ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-200 bg-white text-slate-700'}`}
@@ -3893,7 +4004,7 @@ function App() {
                 />
                 <div className="space-y-1">
                   <input
-                    className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none placeholder:text-slate-500 ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-200 bg-white text-slate-700'}`}
+                    className={`w-full rounded-xl border px-3 py-2.5 text-base sm:text-sm outline-none placeholder:text-slate-500 ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-200 bg-white text-slate-700'}`}
                     placeholder={selectedAction === 'sale' ? 'Selling price (per unit)' : 'Cost price (per unit)'}
                     value={formState.price}
                     onChange={(e) => {
