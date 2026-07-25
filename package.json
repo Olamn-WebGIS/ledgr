@@ -3,7 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  
+  "packageManager": "npm@10.0.0",
+
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
     "build:backend": "npm --prefix backend run build",
@@ -15,13 +16,15 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
     "@vitejs/plugin-react": "^4.3.1",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
     "lucide-react": "^0.468.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "pg": "^8.12.0",
     "recharts": "^3.9.2",
-    "vite": "^5.4.10",
+    "serverless-http": "^3.0.0",
     "typescript": "^5.7.3",
-    "serverless-http": "^3.0.0"
+    "web-push": "^3.6.7",
+    "vite": "^5.4.10"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",

@@ -12,3 +12,4 @@ dist/
 
 # Backend build
 backend/dist/
+.vercel
