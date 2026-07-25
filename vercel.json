@@ -2,15 +2,7 @@
   "version": 2,
   "buildCommand": "npm run build",
   "installCommand": "npm ci --workspaces",
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
+  
   "routes": [
     {
       "src": "/api/(.*)",
