@@ -2084,20 +2084,24 @@ function App() {
           }));
           persistGuestWorkspace({ profile: mergedProfile, expenses: Array.isArray(workspaceData.expenses) ? workspaceData.expenses : expenseEntries, inventoryMeta: workspaceData.inventory_meta || readInventoryMeta(), mode: 'authenticated' });
           setExpenseEntries(Array.isArray(workspaceData.expenses) ? workspaceData.expenses : expenseEntries);
-          setSecurityMessage('Workspace synced.');
+          showToast('Workspace synced successfully.', 'success');
+          showBrowserNotification(
+            'Workspace synced',
+            `Welcome back${mergedProfile?.firstName ? `, ${mergedProfile.firstName}` : ''}! Your workspace is now synced and ready.`
+          );
         } else {
           persistGuestWorkspace({ profile: syncedProfile, expenses: expenseEntries, inventoryMeta: readInventoryMeta(), mode: 'authenticated' });
           setProfile(syncedProfile);
           setProfileForm((prev) => ({ ...prev, firstName: syncedProfile.firstName || '', surname: syncedProfile.surname || '', email: syncedProfile.email || '', businessName: syncedProfile.businessName || '', currency: syncedProfile.currency || 'USD', language: syncedProfile.language || 'en', dateFormat: syncedProfile.dateFormat || 'MM/DD/YYYY', numberFormat: syncedProfile.numberFormat || 'commas', dataSource: 'Supabase', syncStatus: 'Connected', activityTracking: syncedProfile.activityTracking !== false, notificationPreferences: syncedProfile.notificationPreferences || prev.notificationPreferences, lastLoginAt: syncedProfile.lastLoginAt || new Date().toISOString() }));
+          showToast('Workspace synced successfully.', 'success');
+          showBrowserNotification(
+            'Workspace synced',
+            `Welcome back${syncedProfile?.firstName ? `, ${syncedProfile.firstName}` : ''}! Your workspace is now synced and ready.`
+          );
         }
       }
 
       setProfileMessage('');
-      showToast('Workspace synced successfully.', 'success');
-      showBrowserNotification(
-        'Workspace synced',
-        `Welcome back${syncedProfile?.firstName ? `, ${syncedProfile.firstName}` : ''}! Your workspace is now synced and ready.`
-      );
       setShowOnboarding(false);
       setShowAuthModal(false);
     } catch (err) {
