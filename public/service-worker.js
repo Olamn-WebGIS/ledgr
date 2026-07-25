@@ -29,7 +29,20 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
+  const url = new URL(request.url);
   const acceptHeader = request.headers.get('accept') || '';
+  const isDevAsset = url.pathname.startsWith('/@vite')
+    || url.pathname.startsWith('/src/')
+    || url.pathname.startsWith('/react-refresh')
+    || url.pathname === '/manifest.webmanifest'
+    || url.pathname === '/favicon.ico'
+    || url.pathname.startsWith('/icon-')
+    || url.pathname.endsWith('.js') && url.search.includes('t=');
+
+  if (isDevAsset) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   if (request.mode === 'navigate' || acceptHeader.includes('text/html')) {
     event.respondWith(

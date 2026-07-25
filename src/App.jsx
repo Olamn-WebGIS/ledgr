@@ -188,6 +188,7 @@ function App() {
   });
   const [profile, setProfile] = useState(null);
   const [isSupabaseAuthenticated, setIsSupabaseAuthenticated] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const [profileForm, setProfileForm] = useState({
     firstName: '',
     surname: '',
@@ -240,9 +241,12 @@ function App() {
   const [productSuggestionsOpen, setProductSuggestionsOpen] = useState(false);
   const [installPromptEvent, setInstallPromptEvent] = useState(null);
   const [showInstallHint, setShowInstallHint] = useState(false);
+  const [showManualInstallHint, setShowManualInstallHint] = useState(false);
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
   const ITEMS_PER_PAGE = 10;
+
+  const isMobileBrowser = typeof navigator !== 'undefined' && /iphone|ipad|ipod|android/i.test(navigator.userAgent);
   const [inventoryPage, setInventoryPage] = useState(1);
   const [editingInventoryProduct, setEditingInventoryProduct] = useState(null);
   const [pnlPage, setPnlPage] = useState(1);
@@ -352,6 +356,14 @@ function App() {
   }, [toastMessage]);
 
   const registerServiceWorker = async () => {
+    if (import.meta.env.DEV) {
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+      }
+      return null;
+    }
+
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
       return null;
     }
@@ -362,6 +374,16 @@ function App() {
       return null;
     }
   };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && import.meta.env.DEV && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+        .catch(() => {
+          // Ignore failures while unregistering stale development service workers.
+        });
+    }
+  }, []);
 
   const handleInstallPrompt = async () => {
     if (!installPromptEvent || typeof installPromptEvent.prompt !== 'function') {
@@ -761,21 +783,53 @@ function App() {
       return undefined;
     }
 
+    const restoreAuthSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsSupabaseAuthenticated(Boolean(session?.user));
+      } catch (error) {
+        console.error('Unable to restore Supabase session:', error);
+      } finally {
+        setAuthReady(true);
+      }
+    };
+
+    restoreAuthSession();
+
+    const authListener = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsSupabaseAuthenticated(Boolean(session?.user));
+      setAuthReady(true);
+    });
+
+    return () => {
+      authListener.data?.subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault();
       setInstallPromptEvent(event);
       setShowInstallHint(true);
+      setShowManualInstallHint(false);
     };
 
     const handleDeferredPromptReady = () => {
       if (typeof window !== 'undefined' && window.deferredInstallPrompt) {
         handleBeforeInstallPrompt(window.deferredInstallPrompt);
+      } else if (isMobileBrowser) {
+        setShowManualInstallHint(true);
       }
     };
 
     const handleAppInstalled = () => {
       setIsPwaInstalled(true);
       setShowInstallHint(false);
+      setShowManualInstallHint(false);
       setInstallPromptEvent(null);
     };
 
@@ -789,6 +843,9 @@ function App() {
       if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
         setIsPwaInstalled(true);
         setShowInstallHint(false);
+        setShowManualInstallHint(false);
+      } else if (isMobileBrowser) {
+        setShowManualInstallHint(true);
       }
     }
 
@@ -822,8 +879,12 @@ function App() {
       }
     };
 
+    if (!authReady) {
+      return;
+    }
+
     loadDashboard();
-  }, [profile?.operatingExpenses, profileForm.operatingExpenses, expenseTotal]);
+  }, [authReady, profile?.operatingExpenses, profileForm.operatingExpenses, expenseTotal]);
 
   const loadProducts = async () => {
     try {
@@ -843,8 +904,12 @@ function App() {
   };
 
   useEffect(() => {
+    if (!authReady) {
+      return;
+    }
+
     loadProducts();
-  }, []);
+  }, [authReady]);
 
   useEffect(() => {
     if (modalOpen) {
@@ -884,8 +949,12 @@ function App() {
   };
 
   useEffect(() => {
+    if (!authReady) {
+      return;
+    }
+
     refreshCurrentView();
-  }, [activeView]);
+  }, [activeView, authReady]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -3636,17 +3705,25 @@ function App() {
 
                 {activeView === 'dashboard' ? (
                   <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-                    {showInstallHint && !isPwaInstalled ? (
+                    {(showInstallHint || showManualInstallHint) && !isPwaInstalled ? (
                       <div className={`rounded-2xl border px-4 py-3 text-sm ${isDarkMode ? 'border-indigo-500/20 bg-indigo-500/10 text-indigo-100' : 'border-indigo-200 bg-indigo-50 text-indigo-700'}`}>
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                           <span className="font-medium">Add Ledgr to your home screen</span>
-                          <button
-                            type="button"
-                            onClick={handleInstallPrompt}
-                            className={`inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-semibold transition ${isDarkMode ? 'bg-indigo-500 text-white hover:bg-indigo-400' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}
-                          >
-                            Add to home screen
-                          </button>
+                          {installPromptEvent ? (
+                            <button
+                              type="button"
+                              onClick={handleInstallPrompt}
+                              className={`inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-semibold transition ${isDarkMode ? 'bg-indigo-500 text-white hover:bg-indigo-400' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}
+                            >
+                              Add to home screen
+                            </button>
+                          ) : (
+                            <span className="text-sm text-slate-600 dark:text-slate-300">
+                              {isMobileBrowser
+                                ? 'Open your browser menu and choose Add to Home screen to install Ledgr.'
+                                : 'Install Ledgr from your browser settings or add it to your home screen.'}
+                            </span>
+                          )}
                         </div>
                       </div>
                     ) : null}
