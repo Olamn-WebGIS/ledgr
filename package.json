@@ -5,12 +5,12 @@
   "type": "module",
   
   "scripts": {
-    "dev": "./node_modules/.bin/vite",
+    "dev": "node ./node_modules/vite/bin/vite.js",
     "build:backend": "npm --prefix backend run build",
-    "build:frontend": "node -e \"(async()=>{const {build}=await import('vite');await build();})()\"",
+    "build:frontend": "node ./node_modules/vite/bin/vite.js build",
     "build": "npm run build:backend && npm run build:frontend",
     "vercel-build": "npm run build",
-    "preview": "./node_modules/.bin/vite preview"
+    "preview": "node ./node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
