@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "installCommand": "npm install --workspaces --include=dev",
+  "buildCommand": "npm --prefix backend ci && npm run build",
+  "installCommand": "npm install --include=dev",
   
   "routes": [
     {
