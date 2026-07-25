@@ -55,7 +55,7 @@ import {
 } from './authStorage';
 import { supabase } from './supabaseClient';
 
-const defaultApiBaseUrl = import.meta.env.DEV ? 'http://localhost:5000' : '/api';
+const defaultApiBaseUrl = import.meta.env.DEV ? 'http://localhost:5000/api' : '/api';
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl;
 
 // Helper function to add authentication header to API requests
@@ -626,8 +626,12 @@ function App() {
   };
 
   useEffect(() => {
+    if (!authReady || !isSupabaseAuthenticated) {
+      return;
+    }
+
     loadExpenses();
-  }, []);
+  }, [authReady, isSupabaseAuthenticated]);
 
   useEffect(() => {
     const handlePointerDownOutside = (event) => {
@@ -879,12 +883,12 @@ function App() {
       }
     };
 
-    if (!authReady) {
+    if (!authReady || !isSupabaseAuthenticated) {
       return;
     }
 
     loadDashboard();
-  }, [authReady, profile?.operatingExpenses, profileForm.operatingExpenses, expenseTotal]);
+  }, [authReady, isSupabaseAuthenticated, profile?.operatingExpenses, profileForm.operatingExpenses, expenseTotal]);
 
   const loadProducts = async () => {
     try {
@@ -904,12 +908,12 @@ function App() {
   };
 
   useEffect(() => {
-    if (!authReady) {
+    if (!authReady || !isSupabaseAuthenticated) {
       return;
     }
 
     loadProducts();
-  }, [authReady]);
+  }, [authReady, isSupabaseAuthenticated]);
 
   useEffect(() => {
     if (modalOpen) {
@@ -949,12 +953,12 @@ function App() {
   };
 
   useEffect(() => {
-    if (!authReady) {
+    if (!authReady || !isSupabaseAuthenticated) {
       return;
     }
 
     refreshCurrentView();
-  }, [activeView, authReady]);
+  }, [activeView, authReady, isSupabaseAuthenticated]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -1508,6 +1512,7 @@ function App() {
       label: t('kpiRevenue'),
       value: formatCurrency(dashboardData?.revenue ?? 0),
       rawValue: Number(dashboardData?.revenue ?? 0),
+      positiveColor: true,
       icon: DollarSign,
     },
     {
@@ -2677,25 +2682,30 @@ function App() {
         <div className="space-y-4 sm:space-y-6">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {[
-              { label: 'Revenue', value: formatCurrency(revenue), positive: true },
-              { label: 'COGS', value: formatCurrency(cogs), positive: false },
-              { label: 'Profit', value: formatCurrency(profit), positive: true },
-            ].map((item) => (
-              <article key={item.label} className={`rounded-2xl border p-5 shadow-lg ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
-                <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.label}</p>
-                <p className={`mt-3 text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{item.value}</p>
-                {item.label === 'COGS' && productCostBreakdown.length > 0 && (
-                  <div className={`mt-3 space-y-2 border-t pt-3 text-sm ${isDarkMode ? 'border-slate-800 text-slate-300' : 'border-slate-200 text-slate-700'}`}>
-                    {productCostBreakdown.map((product) => (
-                      <div key={product.id} className="flex items-center justify-between gap-3">
-                        <span>{product.name}</span>
-                        <span className="font-medium">{formatCurrency(product.costPerUnit)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </article>
-            ))}
+              { label: 'Revenue', value: formatCurrency(revenue), rawValue: Number(revenue), alwaysPositive: true },
+              { label: 'COGS', value: formatCurrency(cogs), rawValue: Number(cogs), alwaysNegative: true },
+              { label: 'Profit', value: formatCurrency(profit), rawValue: Number(profit) },
+            ].map((item) => {
+              const isNegative = item.alwaysNegative || item.rawValue < 0;
+              const valueClasses = isNegative ? 'text-rose-400' : 'text-emerald-400';
+
+              return (
+                <article key={item.label} className={`rounded-2xl border p-5 shadow-lg ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
+                  <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.label}</p>
+                  <p className={`mt-3 text-2xl font-semibold ${valueClasses}`}>{item.value}</p>
+                  {item.label === 'COGS' && productCostBreakdown.length > 0 && (
+                    <div className={`mt-3 space-y-2 border-t pt-3 text-sm ${isDarkMode ? 'border-slate-800 text-slate-300' : 'border-slate-200 text-slate-700'}`}>
+                      {productCostBreakdown.map((product) => (
+                        <div key={product.id} className="flex items-center justify-between gap-3">
+                          <span>{product.name}</span>
+                          <span className="font-medium">{formatCurrency(product.costPerUnit)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </section>
 
           <section className={`rounded-2xl border p-4 shadow-xl sm:p-6 ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
@@ -3357,10 +3367,13 @@ function App() {
         <section className="grid gap-3 grid-cols-2">
           {kpiCards.map((card) => {
             const Icon = card.icon;
-            const isLossValue = card.alwaysNegative || card.rawValue < 0;
-            const valueClasses = isLossValue
+            const shouldShowNegative = card.alwaysNegative || card.rawValue < 0;
+            const valueClasses = shouldShowNegative
               ? 'text-rose-400'
               : 'text-emerald-400';
+            const iconBgClasses = shouldShowNegative
+              ? 'bg-rose-500/15 text-rose-400'
+              : 'bg-emerald-500/15 text-emerald-400';
 
             return (
               <article
@@ -3372,7 +3385,7 @@ function App() {
                     <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{card.label}</p>
                     <p className={`mt-3 text-xl font-semibold sm:text-2xl ${valueClasses}`}>{card.value}</p>
                   </div>
-                  <div className={`rounded-2xl p-2 ${isLossValue ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                  <div className={`rounded-2xl p-2 ${iconBgClasses}`}>
                     <Icon size={20} />
                   </div>
                 </div>
@@ -3825,7 +3838,7 @@ function App() {
                     <button
                       type="button"
                       onClick={() => setShowPassword((s) => !s)}
-                      className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 ${isDarkMode ? 'text-slate-300' : ''}`}
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${isDarkMode ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
