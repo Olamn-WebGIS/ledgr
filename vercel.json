@@ -1,25 +1,16 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/[...slug].js",
-      "use": "@vercel/node"
-    }
-  ],
   "installCommand": "npm install --include=dev",
-  "buildCommand": "npm --prefix backend ci --include=dev && npm run build",
+  "buildCommand": "npm run vercel-build",
 
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/[...slug].js"
+      "source": "/api/(.*)",
+      "destination": "/backend/dist/server.js"
     },
     {
-      "handle": "filesystem"
-    },
-    {
-      "src": "(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
