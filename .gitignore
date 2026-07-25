@@ -1,0 +1,14 @@
+# Node
+node_modules/
+dist/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Vite
+.vite
+
+# Backend build
+backend/dist/
