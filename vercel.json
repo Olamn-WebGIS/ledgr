@@ -1,7 +1,7 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "installCommand": "npm ci --workspaces --include=dev",
+  "installCommand": "npm install --workspaces --include=dev",
   
   "routes": [
     {
