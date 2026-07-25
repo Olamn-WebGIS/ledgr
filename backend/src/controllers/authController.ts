@@ -7,6 +7,11 @@ function normalizeText(value: unknown) {
 
 export async function createAccount(req: Request, res: Response) {
   try {
+    // Quick guard: ensure Supabase is configured in production environments
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+      return res.status(500).json({ success: false, error: 'supabase_not_configured' });
+    }
+
     const body = req.body ?? {};
     const email = normalizeText(body.email).toLowerCase();
     const password = normalizeText(body.password);
