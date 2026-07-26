@@ -256,7 +256,18 @@ function App() {
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
   const ITEMS_PER_PAGE = 10;
 
-  const isMobileBrowser = typeof navigator !== 'undefined' && /iphone|ipad|ipod|android/i.test(navigator.userAgent);
+  const isMobileBrowser = (() => {
+    if (typeof navigator === 'undefined') {
+      return false;
+    }
+
+    const ua = navigator.userAgent || '';
+    const hasMobileUa = /iphone|ipad|ipod|android|mobile|blackberry|windows phone|iemobile|opera mini/i.test(ua);
+    const hasTouch = navigator.maxTouchPoints > 1 || (typeof window !== 'undefined' && 'ontouchstart' in window && /Macintosh/i.test(ua));
+
+    return hasMobileUa || hasTouch;
+  })();
+
   const [inventoryPage, setInventoryPage] = useState(1);
   const [editingInventoryProduct, setEditingInventoryProduct] = useState(null);
   const [pnlPage, setPnlPage] = useState(1);
@@ -364,6 +375,29 @@ function App() {
       }
       removeScripts();
     };
+  }, [activeView]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const socialScriptSrc = 'https://sidewalkboiling.com/1c/99/d4/1c99d4cb346beac096c135dad13f2bbb.js';
+
+    const removeSocialBar = () => {
+      document.querySelectorAll(`script[src="${socialScriptSrc}"]`).forEach((script) => script.remove());
+      document.querySelectorAll('body > div').forEach((el) => {
+        if (el.id === 'root') return;
+        const text = el.textContent || '';
+        if (text.includes('Learn More') && text.includes('Hide')) {
+          el.remove();
+        }
+      });
+    };
+
+    if (['dashboard', 'settings'].includes(activeView)) {
+      removeSocialBar();
+    }
   }, [activeView]);
 
   const refreshSecuritySnapshot = async () => {
@@ -486,6 +520,21 @@ function App() {
       setSecurityMessage('Thanks! Install completed or prompt accepted.');
     } else {
       setSecurityMessage('Installation dismissed. You can add the app later via your browser menu.');
+    }
+  };
+
+  const handleMobileInstallAction = () => {
+    if (installPromptEvent && typeof installPromptEvent.prompt === 'function') {
+      handleInstallPrompt();
+      return;
+    }
+
+    if (typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent)) {
+      setSecurityMessage('To install on iOS, tap Share and then Add to Home Screen.');
+    } else if (typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent)) {
+      setSecurityMessage('Use your browser menu and choose Add to Home screen to install Ledgr.');
+    } else {
+      setSecurityMessage('Use your browser menu to install Ledgr or add it to your home screen.');
     }
   };
 
@@ -3533,7 +3582,15 @@ function App() {
                 >
                   Add to home screen
                 </button>
-              ) : null}
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleMobileInstallAction}
+                  className={`inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-semibold transition ${isDarkMode ? 'bg-indigo-500 text-white hover:bg-indigo-400' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}
+                >
+                  Install instructions
+                </button>
+              )}
             </div>
           </section>
         ) : null}
@@ -3920,11 +3977,13 @@ function App() {
                               Add to home screen
                             </button>
                           ) : (
-                            <span className="text-sm text-slate-600 dark:text-slate-300">
-                              {isMobileBrowser
-                                ? 'Open your browser menu and choose Add to Home screen to install Ledgr.'
-                                : 'Install Ledgr from your browser settings or add it to your home screen.'}
-                            </span>
+                            <button
+                              type="button"
+                              onClick={handleMobileInstallAction}
+                              className={`inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-semibold transition ${isDarkMode ? 'bg-indigo-500 text-white hover:bg-indigo-400' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}
+                            >
+                              Install help
+                            </button>
                           )}
                         </div>
                       </div>
