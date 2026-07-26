@@ -401,6 +401,35 @@ function App() {
       });
     };
 
+    const applySocialBarStyles = () => {
+      document.querySelectorAll('body > div').forEach((el) => {
+        if (el.id === 'root') return;
+        const text = el.textContent || '';
+        if (text.includes('Learn More') && text.includes('Hide')) {
+          el.style.background = 'transparent';
+          el.style.backgroundColor = 'transparent';
+          el.style.boxShadow = 'none';
+          el.style.border = '0';
+          el.style.outline = 'none';
+          el.style.padding = '0';
+          el.style.margin = '0';
+          el.style.minWidth = '0';
+          el.style.minHeight = '0';
+          el.style.maxWidth = 'none';
+          el.style.maxHeight = 'none';
+          el.style.color = 'inherit';
+          Array.from(el.querySelectorAll('*')).forEach((child) => {
+            child.style.background = 'transparent';
+            child.style.backgroundColor = 'transparent';
+            child.style.backgroundImage = 'none';
+            child.style.boxShadow = 'none';
+            child.style.border = '0';
+            child.style.outline = 'none';
+          });
+        }
+      });
+    };
+
     const injectSocialBar = () => {
       removeSocialBar();
       const script = document.createElement('script');
@@ -411,10 +440,22 @@ function App() {
       script.defer = false;
       script.crossOrigin = 'anonymous';
       document.body.appendChild(script);
+      requestAnimationFrame(() => {
+        applySocialBarStyles();
+      });
+    };
+
+    let socialBarObserver;
+    const observeSocialBar = () => {
+      socialBarObserver = new MutationObserver(() => {
+        applySocialBarStyles();
+      });
+      socialBarObserver.observe(document.body, { childList: true, subtree: true });
     };
 
     if (['inventory', 'pnl', 'expenses'].includes(activeView)) {
       injectSocialBar();
+      observeSocialBar();
     } else {
       removeSocialBar();
     }
