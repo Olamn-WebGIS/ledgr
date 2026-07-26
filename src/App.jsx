@@ -2627,7 +2627,7 @@ function App() {
   const cogs = dashboardData?.cogs ?? 0;
   const productCostBreakdown = dashboardData?.productCostBreakdown ?? [];
   const profit = dashboardData?.profit ?? 0;
-  const grossMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
+  const grossMargin = revenue > 0 ? ((revenue - cogs) / revenue) * 100 : 0;
   const expenseSummary = useMemo(() => {
     const byCategory = expenseEntries.reduce((acc, entry) => {
       const category = entry.category?.trim() || 'Nil';
