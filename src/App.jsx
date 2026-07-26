@@ -1156,8 +1156,9 @@ function App() {
 
   const refreshDashboard = async () => {
     try {
-      await loadExpenses();
-      const operatingExpensesValue = Number(expenseTotal || profileForm.operatingExpenses || profile?.operatingExpenses || 0);
+      const freshEntries = await loadExpenses();
+      const freshExpenseTotal = freshEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+      const operatingExpensesValue = Number(freshExpenseTotal || profileForm.operatingExpenses || profile?.operatingExpenses || 0);
       const response = await apiFetch(`${apiBaseUrl}/dashboard?operatingExpenses=${encodeURIComponent(String(operatingExpensesValue))}`);
       const json = await response.json();
 
