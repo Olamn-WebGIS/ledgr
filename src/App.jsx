@@ -401,31 +401,44 @@ function App() {
       });
     };
 
+    const styleSocialPopup = (el) => {
+      if (!el || el.id === 'root') {
+        return;
+      }
+      el.style.background = 'transparent';
+      el.style.backgroundColor = 'transparent';
+      el.style.backgroundImage = 'none';
+      el.style.boxShadow = 'none';
+      el.style.border = '0';
+      el.style.outline = 'none';
+      el.style.padding = '0';
+      el.style.margin = '0';
+      el.style.minWidth = '0';
+      el.style.minHeight = '0';
+      el.style.maxWidth = 'none';
+      el.style.maxHeight = 'none';
+      el.style.color = 'inherit';
+      el.style.opacity = '1';
+      Array.from(el.querySelectorAll('*')).forEach((child) => {
+        child.style.background = 'transparent';
+        child.style.backgroundColor = 'transparent';
+        child.style.backgroundImage = 'none';
+        child.style.boxShadow = 'none';
+        child.style.border = '0';
+        child.style.outline = 'none';
+      });
+    };
+
     const applySocialBarStyles = () => {
-      document.querySelectorAll('body > div').forEach((el) => {
+      document.querySelectorAll('body > div, body div').forEach((el) => {
         if (el.id === 'root') return;
         const text = el.textContent || '';
         if (text.includes('Learn More') && text.includes('Hide')) {
-          el.style.background = 'transparent';
-          el.style.backgroundColor = 'transparent';
-          el.style.boxShadow = 'none';
-          el.style.border = '0';
-          el.style.outline = 'none';
-          el.style.padding = '0';
-          el.style.margin = '0';
-          el.style.minWidth = '0';
-          el.style.minHeight = '0';
-          el.style.maxWidth = 'none';
-          el.style.maxHeight = 'none';
-          el.style.color = 'inherit';
-          Array.from(el.querySelectorAll('*')).forEach((child) => {
-            child.style.background = 'transparent';
-            child.style.backgroundColor = 'transparent';
-            child.style.backgroundImage = 'none';
-            child.style.boxShadow = 'none';
-            child.style.border = '0';
-            child.style.outline = 'none';
-          });
+          let current = el;
+          while (current && current !== document.body && current !== document.documentElement) {
+            styleSocialPopup(current);
+            current = current.parentElement;
+          }
         }
       });
     };
@@ -443,6 +456,9 @@ function App() {
       requestAnimationFrame(() => {
         applySocialBarStyles();
       });
+      setTimeout(applySocialBarStyles, 200);
+      setTimeout(applySocialBarStyles, 500);
+      setTimeout(applySocialBarStyles, 1000);
     };
 
     let socialBarObserver;
@@ -3980,7 +3996,7 @@ function App() {
                     key={item.id}
                     type="button"
                     onClick={() => {
-                      if (typeof window !== 'undefined') {
+                      if (typeof window !== 'undefined' && item.id === 'settings') {
                         window.location.hash = item.id;
                         window.location.reload();
                         return;
@@ -4317,7 +4333,7 @@ function App() {
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  if (typeof window !== 'undefined') {
+                  if (typeof window !== 'undefined' && item.id === 'settings') {
                     window.location.hash = item.id;
                     window.location.reload();
                     return;
