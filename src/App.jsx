@@ -2759,7 +2759,7 @@ function App() {
             </div>
           </section>
 
-          <div className={`mb-4 rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
+<div className={`${hasAdSlotVisible ? '' : 'hidden'} mb-4 rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
             <div className="mb-3 flex items-center justify-between gap-2">
               <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>Sponsored</span>
             </div>
@@ -2980,7 +2980,7 @@ function App() {
             </p>
           </section>
 
-          <div className={`mb-4 rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
+          <div className={`${hasAdSlotVisible ? '' : 'hidden'} mb-4 rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
             <div className="mb-3 flex items-center justify-between gap-2">
               <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>Sponsored</span>
             </div>
@@ -3201,7 +3201,7 @@ function App() {
             </div>
           </section>
 
-          <section className={`rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
+          <section className={`${hasAdSlotVisible ? '' : 'hidden'} rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
             <div className="mb-3 flex items-center justify-between gap-2">
               <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>Sponsored</span>
             </div>
@@ -3779,7 +3779,7 @@ function App() {
           </div>
         </section>
 
-        <div className={`mb-4 rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
+        <div className={`${hasAdSlotVisible ? '' : 'hidden'} mb-4 rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
           <div className="mb-3 flex items-center justify-between gap-2">
             <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>Sponsored</span>
           </div>
