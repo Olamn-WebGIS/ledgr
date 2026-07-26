@@ -402,13 +402,14 @@ function App() {
     };
 
     const injectSocialBar = () => {
-      if (document.getElementById(socialScriptId)) {
-        return;
-      }
+      removeSocialBar();
       const script = document.createElement('script');
       script.id = socialScriptId;
       script.src = socialScriptSrc;
-      script.async = true;
+      script.type = 'text/javascript';
+      script.async = false;
+      script.defer = false;
+      script.crossOrigin = 'anonymous';
       document.body.appendChild(script);
     };
 
