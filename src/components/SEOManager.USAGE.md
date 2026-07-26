@@ -13,7 +13,7 @@ if (activeView === 'dashboard') {
         description="Track your business income, expenses, and calculate net profit margins in real-time. Manage your P&L effortlessly."
         canonicalUrl="https://ledgr.name.ng/dashboard"
         ogImage="https://ledgr.name.ng/og-dashboard.jpg"
-        keywords="accounting, dashboard, profit and loss, financial tracking"
+        keywords="accounting, dashboard, profit and loss, financial tracking, sales traking, inventory"
         author="Ledgr"
       />
       {/* Existing dashboard JSX content */}

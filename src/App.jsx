@@ -54,6 +54,8 @@ import {
   PROFILE_STORAGE_KEY,
 } from './authStorage';
 import { supabase } from './supabaseClient';
+import { SEOManager } from './components/SEOManager';
+import { SoftwareApplicationJsonLd } from './components/SoftwareApplicationJsonLd';
 
 const defaultApiBaseUrl = import.meta.env.DEV ? 'http://localhost:5000/api' : '/api';
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl;
@@ -239,6 +241,13 @@ function App() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastVariant, setToastVariant] = useState('success');
   const [settingsTab, setSettingsTab] = useState('profile');
+  const settingsTabs = [
+    { id: 'profile', label: 'Profile', icon: UserRound },
+    { id: 'workspace', label: 'Workspace', icon: SlidersHorizontal },
+    { id: 'security', label: 'Security', icon: ShieldCheck },
+  ];
+  const selectedTab = settingsTabs.find((tab) => tab.id === settingsTab) || settingsTabs[0];
+  const ActiveTabIcon = selectedTab.icon || UserRound;
   const [availableProducts, setAvailableProducts] = useState([]);
   const [activeActionMenuId, setActiveActionMenuId] = useState(null);
   const [actionMessage, setActionMessage] = useState('');
@@ -284,6 +293,21 @@ function App() {
     browserLabel: 'Browser',
     lastUpdatedAt: '',
   });
+  const storageUsageLabel = securitySnapshot.storageUsageBytes >= 0
+    ? `${(securitySnapshot.storageUsageBytes / 1024 / 1024).toFixed(2)} MB`
+    : '0 MB';
+  const [syncLogs, setSyncLogs] = useState([
+    { title: 'Sync healthy', detail: 'Your workspace is syncing on schedule.', accent: 'healthy' },
+    { title: 'Backup status', detail: 'All data backed up in the last 24 hours.', accent: 'healthy' },
+  ]);
+  const [deviceList, setDeviceList] = useState([
+    { name: 'Desktop browser', location: 'Home office', seen: 'Just now', status: 'Active' },
+    { name: 'Mobile device', location: 'On the move', seen: '2h ago', status: 'Inactive' },
+  ]);
+  const [sessionHistory, setSessionHistory] = useState([
+    { title: 'Signed in', detail: 'Your last login was 3 hours ago.' },
+    { title: 'Saved settings', detail: 'Workspace preferences were updated yesterday.' },
+  ]);
 
   const ONBOARDING_DISMISSAL_KEY = 'ledgr-onboarding-dismissed';
 
@@ -2735,7 +2759,15 @@ function App() {
   const renderMainContent = () => {
     if (activeView === 'inventory') {
       return (
-        <div className="space-y-4 sm:space-y-6">
+        <>
+          <SEOManager
+            title="Inventory | Ledgr - Stock Management"
+            description="Manage your product inventory, track stock levels, and monitor product costs. Keep your business organized."
+            canonicalUrl="https://ledgr.name.ng/inventory"
+            ogImage="https://ledgr.name.ng/og-inventory.jpg"
+            keywords="inventory, stock management, products, business"
+          />
+          <div className="space-y-4 sm:space-y-6">
           <section className={`rounded-2xl border p-4 shadow-xl sm:p-6 ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -2946,12 +2978,20 @@ function App() {
             </div>
           </section>
         </div>
+          </>
       );
     }
-
     if (activeView === 'pnl') {
       return (
-        <div className="space-y-4 sm:space-y-6">
+        <>
+          <SEOManager
+            title="P&L Report | Ledgr - Profit & Loss Analysis"
+            description="View detailed profit and loss reports. Analyze revenue, costs, and profitability with interactive charts."
+            canonicalUrl="https://ledgr.name.ng/pnl"
+            ogImage="https://ledgr.name.ng/og-pnl.jpg"
+            keywords="profit loss, financial reports, revenue analysis, business analytics"
+          />
+          <div className="space-y-4 sm:space-y-6">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {[
               { label: 'Revenue', value: formatCurrency(revenue), rawValue: Number(revenue), alwaysPositive: true },
@@ -2994,12 +3034,21 @@ function App() {
             <div id="container-61a2c10d537d409af3dbb4930b7469ae" className="mx-auto max-w-full rounded-3xl" />
           </div>
         </div>
+          </>
       );
     }
 
     if (activeView === 'expenses') {
       return (
-        <div className="space-y-4 sm:space-y-6">
+        <>
+          <SEOManager
+            title="Expenses | Ledgr - Track Operating Costs"
+            description="Categorize and track your business expenses. Analyze spending patterns and optimize your budget."
+            canonicalUrl="https://ledgr.name.ng/expenses"
+            ogImage="https://ledgr.name.ng/og-expenses.jpg"
+            keywords="expenses, operating costs, budget tracking, business finance"
+          />
+          <div className="space-y-4 sm:space-y-6">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <article className={`rounded-2xl border p-5 shadow-lg ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
               <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Total expenses</p>
@@ -3215,62 +3264,47 @@ function App() {
             <div id="container-61a2c10d537d409af3dbb4930b7469ae" className="mx-auto max-w-full rounded-3xl" />
           </section>
         </div>
+          </>
       );
     }
-
     if (activeView === 'settings') {
-      const settingsTabs = [
-        { id: 'profile', label: t('profileTab'), icon: UserRound },
-        { id: 'workspace', label: t('workspaceTab'), icon: SlidersHorizontal },
-        { id: 'security', label: t('securityTab'), icon: ShieldCheck },
-      ];
-
-      const selectedTab = settingsTabs.find((tab) => tab.id === settingsTab) ?? settingsTabs[0];
-      const ActiveTabIcon = selectedTab.icon;
-      const lastLoginLabel = profile?.lastLoginAt ? formatDisplayDate(profile.lastLoginAt) : 'No sign-in recorded yet';
-      const storageUsageLabel = formatStorageUsage(securitySnapshot.storageUsageBytes);
-      const syncLogs = [
-        { title: 'Cloud sync', detail: `${profileForm.syncStatus || 'Connected'} • ${profile?.lastLoginAt ? 'Last synced recently' : 'Awaiting first sync'}`, accent: 'healthy' },
-        { title: 'Activity tracking', detail: profileForm.activityTracking ? `${transactions.length} activity events captured` : 'Activity tracking is paused', accent: 'neutral' },
-      ];
-      const deviceList = [
-        { name: 'Current device', location: securitySnapshot.browserLabel || 'Browser', seen: securitySnapshot.lastUpdatedAt ? formatDisplayDate(securitySnapshot.lastUpdatedAt) : 'Just now', status: securitySnapshot.isOnline ? 'Active' : 'Offline' },
-        { name: 'Workspace session', location: typeof window !== 'undefined' ? window.location.hostname : 'Local workspace', seen: profile?.lastLoginAt ? formatDisplayDate(profile.lastLoginAt) : 'Awaiting first sign-in', status: profile?.lastLoginAt ? 'Secure' : 'Review' },
-      ];
-      const sessionHistory = [
-        { title: 'Last sign-in', detail: profile?.lastLoginAt ? `${formatDisplayDate(profile.lastLoginAt)} • ${profileForm.syncStatus || 'Connected'}` : 'No sign-in recorded yet' },
-        { title: 'Last review', detail: securitySnapshot.lastUpdatedAt ? `Reviewed ${formatDisplayDate(securitySnapshot.lastUpdatedAt)}` : 'No security review yet' },
-      ];
-
       return (
-        <div className="space-y-4 sm:space-y-6">
-          <section className={`rounded-3xl border p-4 shadow-xl sm:p-6 ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="w-full">
-                <div className="flex items-center gap-2">
+        <>
+          <SEOManager
+            title="Settings | Ledgr - Account & Workspace"
+            description="Configure your Ledgr account, manage workspace settings, and customize your preferences."
+            canonicalUrl="https://ledgr.name.ng/settings"
+            ogImage="https://ledgr.name.ng/og-settings.jpg"
+            keywords="settings, account, workspace, preferences"
+          />
+          <div className="space-y-4 sm:space-y-6">
+            <section className={`rounded-3xl border p-4 shadow-xl sm:p-6 ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="w-full">
+                  <div className="flex items-center gap-2">
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
-              {settingsTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = selectedTab.id === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setSettingsTab(tab.id)}
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition ${isActive ? (isDarkMode ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-300' : 'border-indigo-500/40 bg-indigo-50 text-indigo-700') : (isDarkMode ? 'border-slate-700 bg-slate-950/60 text-slate-300 hover:bg-slate-800' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100')}`}
-                  >
-                    <Icon size={15} />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
+              <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+                {settingsTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = selectedTab.id === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setSettingsTab(tab.id)}
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition ${isActive ? (isDarkMode ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-300' : 'border-indigo-500/40 bg-indigo-50 text-indigo-700') : (isDarkMode ? 'border-slate-700 bg-slate-950/60 text-slate-300 hover:bg-slate-800' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100')}`}
+                    >
+                      <Icon size={15} />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
 
-            <div className="mt-5 grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
+              <div className="mt-5 grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
               <div className={`rounded-3xl border p-4 sm:p-5 ${isDarkMode ? 'border-slate-800 bg-slate-950/50' : 'border-slate-200 bg-slate-50'}`}>
                 {settingsTab === 'profile' ? (
                   <form className="space-y-4" onSubmit={handleProfileSubmit}>
@@ -3648,11 +3682,20 @@ function App() {
             </div>
           </section>
         </div>
+      </>
       );
     }
 
     return (
       <>
+        <SEOManager
+          title="Dashboard | Ledgr - Profit & Loss Calculator"
+          description="Track your business income, expenses, and calculate net profit margins in real-time. Manage your P&L effortlessly."
+          canonicalUrl="https://ledgr.name.ng/dashboard"
+          ogImage="https://ledgr.name.ng/og-dashboard.jpg"
+          keywords="accounting, dashboard, profit and loss, financial tracking"
+        />
+        <SoftwareApplicationJsonLd />
         {loading ? (
           <div className={`rounded-2xl border px-4 py-3 text-sm ${isDarkMode ? 'border-slate-800 bg-slate-900/70 text-slate-300' : 'border-slate-200 bg-white/80 text-slate-600'}`}>
             Loading dashboard data...
