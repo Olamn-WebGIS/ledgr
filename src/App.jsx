@@ -333,38 +333,36 @@ function App() {
 
     if (['dashboard', 'inventory', 'pnl', 'expenses'].includes(activeView)) {
       setHasAdSlotVisible(false);
+      removeScripts();
 
-      if (!document.getElementById(optionsScriptId)) {
-        const optionsScript = document.createElement('script');
-        optionsScript.id = optionsScriptId;
-        optionsScript.type = 'text/javascript';
-        optionsScript.innerHTML = "atOptions = { 'key' : '9cf8d9c6a7dce6f9d6cb3730ee799cca', 'format' : 'iframe', 'height' : 300, 'width' : 160, 'params' : {} };";
-
-        if (container) {
-          container.appendChild(optionsScript);
-        } else {
-          document.body.appendChild(optionsScript);
-        }
+      const optionsScript = document.createElement('script');
+      optionsScript.id = optionsScriptId;
+      optionsScript.type = 'text/javascript';
+      optionsScript.innerHTML = "atOptions = { 'key' : '9cf8d9c6a7dce6f9d6cb3730ee799cca', 'format' : 'iframe', 'height' : 300, 'width' : 160, 'params' : {} };";
+      if (container) {
+        container.appendChild(optionsScript);
+      } else {
+        document.body.appendChild(optionsScript);
       }
 
-      if (!document.getElementById(invokeScriptId)) {
-        const invokeScript = document.createElement('script');
-        invokeScript.id = invokeScriptId;
-        invokeScript.src = 'https://sidewalkboiling.com/61a2c10d537d409af3dbb4930b7469ae/invoke.js';
-        invokeScript.async = true;
-
-        if (container) {
-          container.appendChild(invokeScript);
-        } else {
-          document.body.appendChild(invokeScript);
-        }
+      const invokeScript = document.createElement('script');
+      invokeScript.id = invokeScriptId;
+      invokeScript.src = 'https://sidewalkboiling.com/61a2c10d537d409af3dbb4930b7469ae/invoke.js';
+      invokeScript.async = true;
+      if (container) {
+        container.appendChild(invokeScript);
+      } else {
+        document.body.appendChild(invokeScript);
       }
 
       if (container) {
         observer = new MutationObserver(updateAdVisibility);
         observer.observe(container, { childList: true, subtree: true });
-        updateAdVisibility();
       }
+
+      updateAdVisibility();
+      setTimeout(updateAdVisibility, 500);
+      setTimeout(updateAdVisibility, 1000);
     } else {
       removeScripts();
       setHasAdSlotVisible(false);
