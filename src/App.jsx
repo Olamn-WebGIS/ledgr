@@ -2952,7 +2952,7 @@ function App() {
               { label: 'Profit', value: formatCurrency(profit), rawValue: Number(profit) },
             ].map((item) => {
               const isNegative = item.alwaysNegative || item.rawValue < 0;
-              const valueClasses = isNegative ? 'text-rose-400' : 'text-emerald-400';
+              const valueClasses = isNegative ? (isDarkMode ? 'text-rose-400' : 'text-rose-600') : (isDarkMode ? 'text-emerald-400' : 'text-emerald-600');
 
               return (
                 <article key={item.label} className={`rounded-2xl border p-5 shadow-lg ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
@@ -3692,11 +3692,11 @@ function App() {
             const Icon = card.icon;
             const shouldShowNegative = card.alwaysNegative || card.rawValue < 0;
             const valueClasses = shouldShowNegative
-              ? 'text-rose-400'
-              : 'text-emerald-400';
+              ? (isDarkMode ? 'text-rose-400' : 'text-rose-600')
+              : (isDarkMode ? 'text-emerald-400' : 'text-emerald-600');
             const iconBgClasses = shouldShowNegative
-              ? 'bg-rose-500/15 text-rose-400'
-              : 'bg-emerald-500/15 text-emerald-400';
+              ? (isDarkMode ? 'bg-rose-500/15 text-rose-400' : 'bg-rose-100 text-rose-600')
+              : (isDarkMode ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-100 text-emerald-600');
 
             return (
               <article
