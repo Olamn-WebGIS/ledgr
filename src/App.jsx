@@ -3618,6 +3618,8 @@ function App() {
                   </div>
                 ) : null}
 
+              </div>
+
               {settingsTab !== 'security' ? (
                 <div className="space-y-4">
                   <div className={`rounded-3xl border p-4 ${isDarkMode ? 'border-slate-800 bg-slate-950/60' : 'border-slate-200 bg-slate-50'}`}>
