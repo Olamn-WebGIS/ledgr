@@ -40,6 +40,28 @@ function normalizeExpense(entry: Record<string, unknown>) {
   };
 }
 
+async function syncWorkspaceSnapshotExpenses(userId: string) {
+  const { data: expenses, error: expensesError } = await supabase
+    .from('expenses')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .order('id', { ascending: false });
+
+  if (expensesError) {
+    throw expensesError;
+  }
+
+  const normalizedExpenses = (expenses ?? []).map((entry) => normalizeExpense(entry as Record<string, unknown>));
+  const { error: snapshotError } = await supabase
+    .from('workspace_snapshots')
+    .upsert({ user_id: userId, expenses: normalizedExpenses }, { onConflict: 'user_id' });
+
+  if (snapshotError) {
+    throw snapshotError;
+  }
+}
+
 export async function listExpenses(req: Request, res: Response) {
   try {
     const userId = (req as any).userId;
@@ -100,6 +122,8 @@ export async function createExpense(req: Request, res: Response) {
       throw error;
     }
 
+    await syncWorkspaceSnapshotExpenses(userId);
+
     return res.status(201).json({ success: true, data: { expense: normalizeExpense(data as Record<string, unknown>) } });
   } catch (error) {
     console.error('Failed to create expense:', error);
@@ -149,6 +173,8 @@ export async function updateExpense(req: Request<{ id: string }>, res: Response)
       throw error;
     }
 
+    await syncWorkspaceSnapshotExpenses(userId);
+
     return res.status(200).json({ success: true, data: { expense: normalizeExpense(data as Record<string, unknown>) } });
   } catch (error) {
     console.error('Failed to update expense:', error);
@@ -184,6 +210,8 @@ export async function deleteExpense(req: Request<{ id: string }>, res: Response)
       return res.status(404).json({ success: false, error: 'Expense not found' });
     }
 
+    await syncWorkspaceSnapshotExpenses(userId);
+
     return res.status(200).json({ success: true, message: 'Expense deleted successfully' });
   } catch (error) {
     console.error('Failed to delete expense:', error);
@@ -202,6 +230,8 @@ export async function deleteAllExpenses(_req: Request, res: Response) {
     if (error) {
       throw error;
     }
+
+    await syncWorkspaceSnapshotExpenses(userId);
 
     return res.status(200).json({ success: true, message: 'All expenses cleared successfully' });
   } catch (error) {

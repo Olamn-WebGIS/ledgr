@@ -168,7 +168,15 @@ function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedAction, setSelectedAction] = useState('sale');
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 'dashboard';
+    }
+
+    const hash = window.location.hash.replace('#', '');
+    const allowedViews = ['dashboard', 'inventory', 'expenses', 'pnl', 'settings'];
+    return allowedViews.includes(hash) ? hash : 'dashboard';
+  });
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window === 'undefined') {
       return true;
@@ -243,6 +251,8 @@ function App() {
   const [showInstallHint, setShowInstallHint] = useState(false);
   const [showManualInstallHint, setShowManualInstallHint] = useState(false);
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
+  const [hasAdSlotVisible, setHasAdSlotVisible] = useState(false);
+
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
   const ITEMS_PER_PAGE = 10;
 
@@ -273,6 +283,88 @@ function App() {
     window.localStorage.setItem('ledgr-theme-mode', isDarkMode ? 'dark' : 'light');
     document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
   }, [isDarkMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const optionsScriptId = 'sidewalkboiling-dashboard-options-script';
+    const invokeScriptId = 'sidewalkboiling-dashboard-invoke-script';
+    const containerId = 'container-61a2c10d537d409af3dbb4930b7469ae';
+
+    const removeScripts = () => {
+      const optionsScript = document.getElementById(optionsScriptId);
+      if (optionsScript) {
+        optionsScript.remove();
+      }
+      const invokeScript = document.getElementById(invokeScriptId);
+      if (invokeScript) {
+        invokeScript.remove();
+      }
+    };
+
+    const hasRenderedAd = (element) => {
+      if (!element) {
+        return false;
+      }
+      return Array.from(element.children).some((child) => child.tagName !== 'SCRIPT' && child.tagName !== 'NOSCRIPT');
+    };
+
+    const updateAdVisibility = () => {
+      const container = document.getElementById(containerId);
+      setHasAdSlotVisible(hasRenderedAd(container));
+    };
+
+    let observer;
+    const container = document.getElementById(containerId);
+
+    if (['dashboard', 'inventory', 'pnl', 'expenses'].includes(activeView)) {
+      setHasAdSlotVisible(false);
+
+      if (!document.getElementById(optionsScriptId)) {
+        const optionsScript = document.createElement('script');
+        optionsScript.id = optionsScriptId;
+        optionsScript.type = 'text/javascript';
+        optionsScript.innerHTML = "atOptions = { 'key' : '9cf8d9c6a7dce6f9d6cb3730ee799cca', 'format' : 'iframe', 'height' : 300, 'width' : 160, 'params' : {} };";
+
+        if (container) {
+          container.appendChild(optionsScript);
+        } else {
+          document.body.appendChild(optionsScript);
+        }
+      }
+
+      if (!document.getElementById(invokeScriptId)) {
+        const invokeScript = document.createElement('script');
+        invokeScript.id = invokeScriptId;
+        invokeScript.src = 'https://sidewalkboiling.com/61a2c10d537d409af3dbb4930b7469ae/invoke.js';
+        invokeScript.async = true;
+
+        if (container) {
+          container.appendChild(invokeScript);
+        } else {
+          document.body.appendChild(invokeScript);
+        }
+      }
+
+      if (container) {
+        observer = new MutationObserver(updateAdVisibility);
+        observer.observe(container, { childList: true, subtree: true });
+        updateAdVisibility();
+      }
+    } else {
+      removeScripts();
+      setHasAdSlotVisible(false);
+    }
+
+    return () => {
+      if (observer) {
+        observer.disconnect();
+      }
+      removeScripts();
+    };
+  }, [activeView]);
 
   const refreshSecuritySnapshot = async () => {
     try {
@@ -356,19 +448,15 @@ function App() {
   }, [toastMessage]);
 
   const registerServiceWorker = async () => {
-    if (import.meta.env.DEV) {
-      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map((registration) => registration.unregister()));
-      }
-      return null;
-    }
-
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
       return null;
     }
 
     try {
+      if (import.meta.env.DEV) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+      }
       return await navigator.serviceWorker.register('/service-worker.js');
     } catch {
       return null;
@@ -509,17 +597,26 @@ function App() {
   };
 
   const handleEnablePushNotifications = async () => {
-    const subscription = await subscribeToPushNotifications();
-    if (!subscription) {
-      setSecurityMessage('Push notifications could not be enabled. Please allow notifications in your browser.');
+    if (submitting) {
       return;
     }
 
-    const registered = await registerPushSubscriptionWithServer(subscription);
-    if (registered) {
-      setSecurityMessage('Push notifications enabled for this device.');
-    } else {
-      setSecurityMessage('Push notifications subscription was created, but server registration failed.');
+    setSubmitting(true);
+    try {
+      const subscription = await subscribeToPushNotifications();
+      if (!subscription) {
+        setSecurityMessage('Push notifications could not be enabled. Please allow notifications in your browser.');
+        return;
+      }
+
+      const registered = await registerPushSubscriptionWithServer(subscription);
+      if (registered) {
+        setSecurityMessage('Push notifications enabled for this device.');
+      } else {
+        setSecurityMessage('Push notifications subscription was created, but server registration failed.');
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -942,23 +1039,23 @@ function App() {
     }
   };
 
-  const refreshCurrentView = async () => {
-    if (activeView === 'dashboard' || activeView === 'pnl') {
+  const refreshCurrentView = async (view = activeView) => {
+    if (view === 'dashboard' || view === 'pnl') {
       await refreshDashboard();
-    } else if (activeView === 'inventory') {
+    } else if (view === 'inventory') {
       await loadProducts();
-    } else if (activeView === 'expenses') {
+    } else if (view === 'expenses') {
       await loadExpenses();
     }
   };
 
   useEffect(() => {
-    if (!authReady || !isSupabaseAuthenticated) {
+    if (!authReady) {
       return;
     }
 
     refreshCurrentView();
-  }, [activeView, authReady, isSupabaseAuthenticated]);
+  }, [activeView, authReady]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -1001,9 +1098,15 @@ function App() {
   };
 
   const handleSaveInventoryEdit = async () => {
+    if (submitting) {
+      return;
+    }
+
     if (!editingInventoryProduct) {
       return;
     }
+
+    setSubmitting(true);
 
     try {
       const isNewProduct = editingInventoryProduct === 'new';
@@ -1086,13 +1189,20 @@ function App() {
       await refreshDashboard();
     } catch (err) {
       setActionMessage(err.message || 'Unable to save product.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDeleteInventoryProduct = async (row) => {
+    if (submitting) {
+      return;
+    }
     if (!window.confirm(`Delete ${row.name}?`)) {
       return;
     }
+
+    setSubmitting(true);
 
     try {
       const response = await apiFetch(`${apiBaseUrl}/products/${row.id}`, {
@@ -1112,6 +1222,8 @@ function App() {
       await refreshDashboard();
     } catch (err) {
       setActionMessage(err.message || 'Unable to delete product.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1123,9 +1235,15 @@ function App() {
   };
 
   const handleSaveInventoryRestock = async () => {
+    if (submitting) {
+      return;
+    }
+
     if (!restockingInventoryProduct) {
       return;
     }
+
+    setSubmitting(true);
 
     try {
       const quantity = Number(restockForm.quantity || 0);
@@ -1161,6 +1279,8 @@ function App() {
       });
     } catch (err) {
       setActionMessage(err.message || 'Unable to restock product.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -2186,6 +2306,11 @@ function App() {
   };
 
   const handleLogout = async () => {
+    if (submitting) {
+      return;
+    }
+
+    setSubmitting(true);
     try {
       await supabase.auth.signOut();
     } catch {
@@ -2214,6 +2339,7 @@ function App() {
       setModalOpen(false);
       setShowAuthModal(false);
       setShowOnboarding(true);
+      setSubmitting(false);
     }
   };
 
@@ -2501,6 +2627,13 @@ function App() {
             </div>
           </section>
 
+<div className={`${hasAdSlotVisible ? '' : 'hidden'} mb-4 rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>Sponsored</span>
+            </div>
+            <div id="container-61a2c10d537d409af3dbb4930b7469ae" className="mx-auto max-w-full rounded-3xl" />
+          </div>
+
           <section className={`rounded-2xl border p-4 shadow-xl sm:p-6 ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
@@ -2550,7 +2683,7 @@ function App() {
                   </label>
                 </div>
                 <div className="mt-3 flex justify-end">
-                  <button type="button" onClick={handleSaveInventoryRestock} className="rounded-2xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500">Save restock</button>
+                  <button type="button" onClick={handleSaveInventoryRestock} disabled={submitting} className="rounded-2xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-500 disabled:hover:bg-indigo-600">Save restock</button>
                 </div>
               </div>
             ) : null}
@@ -2714,6 +2847,13 @@ function App() {
               Gross margin is {grossMargin.toFixed(1)}% based on the current revenue and profit totals.
             </p>
           </section>
+
+          <div className={`${hasAdSlotVisible ? '' : 'hidden'} mb-4 rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>Sponsored</span>
+            </div>
+            <div id="container-61a2c10d537d409af3dbb4930b7469ae" className="mx-auto max-w-full rounded-3xl" />
+          </div>
         </div>
       );
     }
@@ -2928,6 +3068,13 @@ function App() {
               )) : null}
             </div>
           </section>
+
+          <section className={`${hasAdSlotVisible ? '' : 'hidden'} rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>Sponsored</span>
+            </div>
+            <div id="container-61a2c10d537d409af3dbb4930b7469ae" className="mx-auto max-w-full rounded-3xl" />
+          </section>
         </div>
       );
     }
@@ -3081,8 +3228,8 @@ function App() {
                     </div>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <p className={`text-sm ${getPromptToneClasses(profileMessage, isDarkMode ? 'text-slate-400' : 'text-slate-600')}`}>{profileMessage || (profile ? `Current profile: ${profile.firstName} ${profile.surname}` : 'Create your profile to personalize Ledgr.')}</p>
-                      <button type="submit" className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500">
-                        Save changes
+                      <button type="submit" disabled={submitting} className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-500 disabled:hover:bg-indigo-600">
+                        {submitting ? 'Saving…' : 'Save changes'}
                       </button>
                     </div>
                   </form>
@@ -3187,9 +3334,9 @@ function App() {
                           type="button"
                           onClick={handleSaveWorkspacePreferences}
                           disabled={submitting}
-                          className="w-full inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-400"
+                          className="w-full inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-500 disabled:hover:bg-indigo-600"
                         >
-                          Save workspace settings
+                          {submitting ? 'Saving…' : 'Save workspace settings'}
                         </button>
                       </div>
                       {securityMessage ? (
@@ -3306,7 +3453,8 @@ function App() {
                           <button
                             type="button"
                             onClick={handleLogout}
-                            className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium transition ${isDarkMode ? 'border-slate-700 bg-slate-950/60 text-slate-200 hover:bg-slate-800' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
+                            disabled={submitting}
+                            className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium transition ${isDarkMode ? 'border-slate-700 bg-slate-950/60 text-slate-200 hover:bg-slate-800' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'} ${submitting ? 'cursor-not-allowed opacity-70' : ''}`}
                           >
                             <RefreshCw size={15} />
                             Log out
@@ -3362,6 +3510,32 @@ function App() {
           <div className={`rounded-2xl border px-4 py-3 text-sm ${isDarkMode ? 'border-slate-800 bg-slate-900/70 text-slate-300' : 'border-slate-200 bg-white/80 text-slate-600'}`}>
             Loading dashboard data...
           </div>
+        ) : null}
+
+        {(showInstallHint || showManualInstallHint) && !isPwaInstalled ? (
+          <section className={`rounded-2xl border p-4 shadow-sm sm:p-5 ${isDarkMode ? 'border-indigo-500/20 bg-indigo-500/10 text-indigo-100' : 'border-indigo-200 bg-indigo-50 text-indigo-700'}`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold">Add Ledgr to your home screen</p>
+                <p className={`mt-1 text-sm ${isDarkMode ? 'text-indigo-100' : 'text-indigo-700'}`}>
+                  {installPromptEvent
+                    ? 'Tap the button to install Ledgr and launch it like an app.'
+                    : isMobileBrowser
+                      ? 'Use your browser menu to add Ledgr to your home screen.'
+                      : 'Open your browser menu to install Ledgr or add it to your home screen.'}
+                </p>
+              </div>
+              {installPromptEvent ? (
+                <button
+                  type="button"
+                  onClick={handleInstallPrompt}
+                  className={`inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-semibold transition ${isDarkMode ? 'bg-indigo-500 text-white hover:bg-indigo-400' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}
+                >
+                  Add to home screen
+                </button>
+              ) : null}
+            </div>
+          </section>
         ) : null}
 
         <section className="grid gap-3 grid-cols-2">
@@ -3463,6 +3637,13 @@ function App() {
           </div>
         </section>
 
+        <div className={`${hasAdSlotVisible ? '' : 'hidden'} mb-4 rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>Sponsored</span>
+          </div>
+          <div id="container-61a2c10d537d409af3dbb4930b7469ae" className="mx-auto max-w-full rounded-3xl" />
+        </div>
+
         <section className={`rounded-2xl border p-3 shadow-xl sm:p-6 ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -3531,7 +3712,6 @@ function App() {
               {actionMessage}
             </div>
           ) : null}
-
 
           <div className="overflow-x-auto">
             <table className={`min-w-full divide-y text-left text-sm ${isDarkMode ? 'divide-slate-800' : 'divide-slate-200'}`}>
@@ -3649,7 +3829,7 @@ function App() {
 
   if (showOnboarding) {
     return (
-      <div className={`min-h-screen ${isDarkMode ? 'bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.2),_transparent_35%),linear-gradient(135deg,#020617_0%,#0f172a_100%)] text-slate-100' : 'bg-[radial-gradient(circle_at_top_left,_rgba(129,140,248,0.15),_transparent_35%),linear-gradient(135deg,#f8fafc_0%,#e2e8f0_100%)] text-slate-800'}`}>
+      <div className={`min-h-screen overflow-hidden ${isDarkMode ? 'bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.2),_transparent_35%),linear-gradient(135deg,#020617_0%,#0f172a_100%)] text-slate-100' : 'bg-[radial-gradient(circle_at_top_left,_rgba(129,140,248,0.15),_transparent_35%),linear-gradient(135deg,#f8fafc_0%,#e2e8f0_100%)] text-slate-800'}`}>
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-3 py-3 sm:px-6 lg:flex-row lg:gap-6 lg:px-8 lg:py-8">
           <aside className={`hidden rounded-3xl border p-4 shadow-2xl backdrop-blur lg:sticky lg:top-6 lg:block lg:h-fit lg:w-72 lg:p-5 ${isDarkMode ? 'border-slate-800/80 bg-slate-900/70 shadow-slate-950/40' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
             <div className="flex items-center gap-3">
@@ -3671,7 +3851,16 @@ function App() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setActiveView(item.id)}
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        window.location.hash = item.id;
+                        window.location.reload();
+                        return;
+                      }
+
+                      setActiveView(item.id);
+                      refreshCurrentView(item.id);
+                    }}
                     className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition ${isActive ? (isDarkMode ? 'bg-indigo-500/10 text-indigo-300' : 'bg-indigo-100 text-indigo-700') : (isDarkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
                   >
                     <Icon size={16} />
@@ -3756,12 +3945,13 @@ function App() {
           </div>
         </div>
 
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 px-4 py-8 backdrop-blur-[2px]">
-          <div className={`w-full max-w-xl rounded-3xl border p-6 shadow-2xl sm:p-8 ${isDarkMode ? 'border-slate-800 bg-slate-900/90 shadow-slate-950/40' : 'border-slate-200 bg-white/90 shadow-slate-200/70'}`}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-2">
-                <p className={`text-sm font-semibold uppercase tracking-[0.2em] ${isDarkMode ? 'text-indigo-300' : 'text-indigo-600'}`}>Welcome to Ledgr</p>
-                <h2 className={`text-2xl font-semibold sm:text-3xl ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Create your workspace profile</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 px-3 py-4 backdrop-blur-[2px]">
+          <div className={`w-full max-w-[19rem] rounded-3xl border p-2 shadow-2xl sm:max-w-[24rem] sm:p-6 ${isDarkMode ? 'border-slate-800 bg-slate-900/95 shadow-slate-950/40' : 'border-slate-200 bg-white/95 shadow-slate-200/70'}`} style={{ maxHeight: 'calc(100vh - 1.5rem)' }}>
+            <div className="max-h-[calc(100vh-1.5rem)] overflow-y-auto pr-1">
+              <div className="flex items-start justify-between gap-2">
+              <div className="space-y-1.5">
+                <p className={`text-[9px] font-semibold uppercase tracking-[0.35em] ${isDarkMode ? 'text-indigo-300' : 'text-indigo-600'}`}>Welcome to Ledgr</p>
+                <h2 className={`text-base font-semibold sm:text-xl ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Create your workspace profile</h2>
               </div>
               <button
                 type="button"
@@ -3773,47 +3963,47 @@ function App() {
               </button>
             </div>
 
-            <form className="mt-6 space-y-4" onSubmit={handleProfileSubmit}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="space-y-2 text-sm">
+            <form className="mt-3 space-y-2" onSubmit={handleProfileSubmit}>
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                <label className="space-y-1 text-xs">
                   <span className={`${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>First name</span>
                   <input
                     value={profileForm.firstName}
                     onChange={(event) => setProfileForm((prev) => ({ ...prev, firstName: event.target.value }))}
-                    className={`w-full rounded-2xl border px-3 py-2.5 text-sm outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                    className={`w-full rounded-2xl border px-2 py-1.5 text-xs outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
                     placeholder="First name"
                   />
                 </label>
-                <label className="space-y-2 text-sm">
+                <label className="space-y-1 text-xs">
                   <span className={`${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Surname</span>
                   <input
                     value={profileForm.surname}
                     onChange={(event) => setProfileForm((prev) => ({ ...prev, surname: event.target.value }))}
-                    className={`w-full rounded-2xl border px-3 py-2.5 text-sm outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                    className={`w-full rounded-2xl border px-2 py-1.5 text-xs outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
                     placeholder="Surname"
                   />
                 </label>
               </div>
 
-              <label className="space-y-2 text-sm">
+              <label className="space-y-1 text-xs">
                 <span className={`${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Email</span>
                 <input
                   required
                   type="email"
                   value={profileForm.email}
                   onChange={(event) => setProfileForm((prev) => ({ ...prev, email: event.target.value }))}
-                  className={`w-full rounded-2xl border px-3 py-2.5 text-sm outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                  className={`w-full rounded-2xl border px-2 py-1.5 text-xs outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
                   placeholder="your@email.com"
                 />
               </label>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="space-y-2 text-sm">
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                <label className="space-y-1 text-xs">
                   <span className={`${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Default currency</span>
                   <select
                     value={profileForm.currency}
                     onChange={(event) => setProfileForm((prev) => ({ ...prev, currency: event.target.value }))}
-                    className={`w-full rounded-2xl border px-3 py-2.5 text-sm outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                    className={`w-full rounded-2xl border px-2 py-1.5 text-xs outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
                   >
                     {currencyOptions.map((currency) => {
                       const meta = getCurrencyMeta(currency);
@@ -3825,20 +4015,20 @@ function App() {
                     })}
                   </select>
                 </label>
-                <label className="space-y-2 text-sm">
+                <label className="space-y-1 text-xs">
                   <span className={`${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Password</span>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={profileForm.password}
                       onChange={(event) => setProfileForm((prev) => ({ ...prev, password: event.target.value }))}
-                      className={`w-full rounded-2xl border px-3 py-2.5 pr-10 text-sm outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                      className={`w-full rounded-2xl border px-2 py-1.5 pr-9 text-xs outline-none ${isDarkMode ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
                       placeholder="Create password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((s) => !s)}
-                      className={`absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${isDarkMode ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
+                      className={`absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${isDarkMode ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -3847,28 +4037,30 @@ function App() {
                 </label>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-2">
-                  <p className={`text-sm ${getPromptToneClasses(profileMessage, isDarkMode ? 'text-slate-400' : 'text-slate-600')}`}>{profileMessage || 'Continue to create your workspace profile.'}</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <p className={`text-xs ${getPromptToneClasses(profileMessage, isDarkMode ? 'text-slate-400' : 'text-slate-600')}`}>{profileMessage || 'Continue to create your workspace profile.'}</p>
                   <button
                     type="button"
                     onClick={openLoginFromOnboarding}
-                    className={`text-sm font-medium underline-offset-2 hover:underline ${isDarkMode ? 'text-indigo-300' : 'text-indigo-600'}`}
+                    className={`text-xs font-medium underline-offset-2 hover:underline ${isDarkMode ? 'text-indigo-300' : 'text-indigo-600'}`}
                   >
                     Already have an account? Log in here
                   </button>
                 </div>
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-500 disabled:hover:bg-indigo-600"
                 >
-                  Continue
+                  {submitting ? 'Continuing…' : 'Continue'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       </div>
+    </div>
     );
   }
 
@@ -3983,7 +4175,16 @@ function App() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setActiveView(item.id)}
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.location.hash = item.id;
+                    window.location.reload();
+                    return;
+                  }
+
+                  setActiveView(item.id);
+                  refreshCurrentView(item.id);
+                }}
                 className={`flex flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-[11px] font-medium transition ${isActive ? (isDarkMode ? 'bg-indigo-500/20 text-indigo-200 shadow-sm shadow-indigo-500/20' : 'bg-indigo-100 text-indigo-700') : (isDarkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')}`}
               >
                 <Icon size={16} />
@@ -4151,7 +4352,7 @@ function App() {
               <button type="button" onClick={closeInventoryModal} className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition ${isDarkMode ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-700 hover:bg-slate-100'}`}>
                 Cancel
               </button>
-              <button type="button" onClick={handleSaveInventoryEdit} className="rounded-2xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500">{editingInventoryProduct === 'new' ? 'Create product' : 'Save changes'}</button>
+              <button type="button" onClick={handleSaveInventoryEdit} disabled={submitting} className="rounded-2xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-500 disabled:hover:bg-indigo-600">{editingInventoryProduct === 'new' ? 'Create product' : 'Save changes'}</button>
             </div>
           </div>
         </div>
