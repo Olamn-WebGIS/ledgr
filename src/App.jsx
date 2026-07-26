@@ -250,6 +250,7 @@ function App() {
   const [installPromptEvent, setInstallPromptEvent] = useState(null);
   const [showInstallHint, setShowInstallHint] = useState(false);
   const [showManualInstallHint, setShowManualInstallHint] = useState(false);
+  const [manualInstallHintMessage, setManualInstallHintMessage] = useState('');
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [hasAdSlotVisible, setHasAdSlotVisible] = useState(false);
 
@@ -379,13 +380,18 @@ function App() {
 
   useEffect(() => {
     if (typeof window === 'undefined') {
-      return;
+      return undefined;
     }
 
+    const socialScriptId = 'sidewalkboiling-social-script';
     const socialScriptSrc = 'https://sidewalkboiling.com/1c/99/d4/1c99d4cb346beac096c135dad13f2bbb.js';
 
     const removeSocialBar = () => {
       document.querySelectorAll(`script[src="${socialScriptSrc}"]`).forEach((script) => script.remove());
+      const existingScript = document.getElementById(socialScriptId);
+      if (existingScript) {
+        existingScript.remove();
+      }
       document.querySelectorAll('body > div').forEach((el) => {
         if (el.id === 'root') return;
         const text = el.textContent || '';
@@ -395,9 +401,26 @@ function App() {
       });
     };
 
-    if (['dashboard', 'settings'].includes(activeView)) {
+    const injectSocialBar = () => {
+      if (document.getElementById(socialScriptId)) {
+        return;
+      }
+      const script = document.createElement('script');
+      script.id = socialScriptId;
+      script.src = socialScriptSrc;
+      script.async = true;
+      document.body.appendChild(script);
+    };
+
+    if (['inventory', 'pnl', 'expenses'].includes(activeView)) {
+      injectSocialBar();
+    } else {
       removeSocialBar();
     }
+
+    return () => {
+      removeSocialBar();
+    };
   }, [activeView]);
 
   const refreshSecuritySnapshot = async () => {
@@ -529,12 +552,16 @@ function App() {
       return;
     }
 
+    setShowInstallHint(false);
+    setShowManualInstallHint(true);
+    setSecurityMessage('');
+
     if (typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent)) {
-      setSecurityMessage('To install on iOS, tap Share and then Add to Home Screen.');
+      setManualInstallHintMessage('To install on iOS, tap Share and then Add to Home Screen.');
     } else if (typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent)) {
-      setSecurityMessage('Use your browser menu and choose Add to Home screen to install Ledgr.');
+      setManualInstallHintMessage('Use your browser menu and choose Add to Home screen to install Ledgr.');
     } else {
-      setSecurityMessage('Use your browser menu to install Ledgr or add it to your home screen.');
+      setManualInstallHintMessage('Use your browser menu to install Ledgr or add it to your home screen.');
     }
   };
 
@@ -3569,9 +3596,11 @@ function App() {
                 <p className={`mt-1 text-sm ${isDarkMode ? 'text-indigo-100' : 'text-indigo-700'}`}>
                   {installPromptEvent
                     ? 'Tap the button to install Ledgr and launch it like an app.'
-                    : isMobileBrowser
-                      ? 'Use your browser menu to add Ledgr to your home screen.'
-                      : 'Open your browser menu to install Ledgr or add it to your home screen.'}
+                    : manualInstallHintMessage
+                      ? manualInstallHintMessage
+                      : isMobileBrowser
+                        ? 'Use your browser menu to add Ledgr to your home screen.'
+                        : 'Open your browser menu to install Ledgr or add it to your home screen.'}
                 </p>
               </div>
               {installPromptEvent ? (
@@ -3967,7 +3996,18 @@ function App() {
                     {(showInstallHint || showManualInstallHint) && !isPwaInstalled ? (
                       <div className={`rounded-2xl border px-4 py-3 text-sm ${isDarkMode ? 'border-indigo-500/20 bg-indigo-500/10 text-indigo-100' : 'border-indigo-200 bg-indigo-50 text-indigo-700'}`}>
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                          <span className="font-medium">Add Ledgr to your home screen</span>
+                          <div>
+                            <p className="font-medium">Add Ledgr to your home screen</p>
+                            <p className={`mt-1 text-sm ${isDarkMode ? 'text-indigo-100' : 'text-indigo-700'}`}>
+                              {installPromptEvent
+                                ? 'Tap the button to install Ledgr and launch it like an app.'
+                                : manualInstallHintMessage
+                                  ? manualInstallHintMessage
+                                  : isMobileBrowser
+                                    ? 'Open your browser menu and choose Add to Home screen to install Ledgr.'
+                                    : 'Install Ledgr from your browser settings or add it to your home screen.'}
+                            </p>
+                          </div>
                           {installPromptEvent ? (
                             <button
                               type="button"
@@ -3982,7 +4022,7 @@ function App() {
                               onClick={handleMobileInstallAction}
                               className={`inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-semibold transition ${isDarkMode ? 'bg-indigo-500 text-white hover:bg-indigo-400' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}
                             >
-                              Install help
+                              Show install instructions
                             </button>
                           )}
                         </div>
