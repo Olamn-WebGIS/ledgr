@@ -2996,7 +2996,7 @@ function App() {
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <article className={`rounded-2xl border p-5 shadow-lg ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
               <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Total expenses</p>
-              <p className={`mt-3 text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(expenseSummary.total)}</p>
+              <p className={`mt-3 text-2xl font-semibold ${expenseSummary.total === 0 ? (isDarkMode ? 'text-white' : 'text-slate-900') : (isDarkMode ? 'text-rose-300' : 'text-rose-600')}`}>{formatCurrency(expenseSummary.total)}</p>
             </article>
             <article className={`rounded-2xl border p-5 shadow-lg ${isDarkMode ? 'border-slate-800 bg-slate-900/80 shadow-slate-950/30' : 'border-slate-200 bg-white/80 shadow-slate-200/70'}`}>
               <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Largest category</p>
@@ -3263,14 +3263,17 @@ function App() {
               })}
             </div>
 
+            {hasAdSlotVisible && (
+              <section className={`rounded-3xl border p-4 shadow-xl ${isDarkMode ? 'border-slate-800 bg-slate-900/80 text-slate-100' : 'border-slate-200 bg-white/80 text-slate-900'}`}>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>Sponsored</span>
+                </div>
+                <div id="container-61a2c10d537d409af3dbb4930b7469ae" className="mx-auto max-w-full rounded-3xl" />
+              </section>
+            )}
+
             <div className="mt-5 grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
               <div className={`rounded-3xl border p-4 sm:p-5 ${isDarkMode ? 'border-slate-800 bg-slate-950/50' : 'border-slate-200 bg-slate-50'}`}>
-                <div className={`mb-4 rounded-3xl border p-4 ${isDarkMode ? 'border-slate-700 bg-slate-950/70 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-900'}`}>
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>Sponsored</span>
-                  </div>
-                  <div id="container-61a2c10d537d409af3dbb4930b7469ae" className="mx-auto max-w-full rounded-3xl" />
-                </div>
                 {settingsTab === 'profile' ? (
                   <form className="space-y-4" onSubmit={handleProfileSubmit}>
                     <div className="flex items-center gap-2">
@@ -4000,7 +4003,7 @@ function App() {
                     key={item.id}
                     type="button"
                     onClick={() => {
-                      if (typeof window !== 'undefined' && item.id === 'settings') {
+                      if (typeof window !== 'undefined' && (item.id === 'settings' || item.id === 'dashboard')) {
                         window.location.hash = item.id;
                         window.location.reload();
                         return;
@@ -4337,7 +4340,7 @@ function App() {
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  if (typeof window !== 'undefined' && item.id === 'settings') {
+                  if (typeof window !== 'undefined' && (item.id === 'settings' || item.id === 'dashboard')) {
                     window.location.hash = item.id;
                     window.location.reload();
                     return;
