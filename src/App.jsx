@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Area,
   AreaChart,
@@ -262,6 +262,10 @@ function App() {
   const [manualInstallHintMessage, setManualInstallHintMessage] = useState('');
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [hasAdSlotVisible, setHasAdSlotVisible] = useState(false);
+  const [isRevenueChartVisible, setIsRevenueChartVisible] = useState(false);
+  const [isExpenseChartVisible, setIsExpenseChartVisible] = useState(false);
+  const revenueChartRef = useRef(null);
+  const expenseChartRef = useRef(null);
 
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
   const ITEMS_PER_PAGE = 10;
@@ -319,6 +323,46 @@ function App() {
     window.localStorage.setItem('ledgr-theme-mode', isDarkMode ? 'dark' : 'light');
     document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
   }, [isDarkMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (!['dashboard', 'expenses'].includes(activeView)) {
+      return;
+    }
+
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsRevenueChartVisible(true);
+      setIsExpenseChartVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) {
+            return;
+          }
+
+          if (entry.target === revenueChartRef.current) {
+            setIsRevenueChartVisible(true);
+          } else if (entry.target === expenseChartRef.current) {
+            setIsExpenseChartVisible(true);
+          }
+        });
+      },
+      {
+        rootMargin: '200px 0px',
+        threshold: 0.15,
+      }
+    );
+
+    [revenueChartRef.current, expenseChartRef.current].filter(Boolean).forEach((element) => observer.observe(element));
+
+    return () => observer.disconnect();
+  }, [activeView]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -3073,30 +3117,36 @@ function App() {
                 <p className={`mt-1 text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Monthly costs and category movement</p>
               </div>
             </div>
-            <div className="mt-4 h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={expenseTrend}>
-                  <defs>
-                    <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.03} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#cbd5e1'} strokeOpacity={0.35} />
-                  <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: isDarkMode ? '#94a3b8' : '#64748b', fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: isDarkMode ? '#94a3b8' : '#64748b', fontSize: 12 }} />
-                  <Tooltip
-                    cursor={{ stroke: '#f59e0b', strokeWidth: 1 }}
-                    contentStyle={{
-                      backgroundColor: isDarkMode ? '#020617' : '#ffffff',
-                      border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                      borderRadius: '12px',
-                      color: isDarkMode ? '#f8fafc' : '#0f172a',
-                    }}
-                  />
-                  <Area type="monotone" dataKey="expenses" stroke="#f59e0b" strokeWidth={2.5} fill="url(#expenseGradient)" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div ref={expenseChartRef} className="mt-4 h-64 w-full">
+              {isExpenseChartVisible ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={expenseTrend}>
+                    <defs>
+                      <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.03} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#cbd5e1'} strokeOpacity={0.35} />
+                    <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: isDarkMode ? '#94a3b8' : '#64748b', fontSize: 12 }} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fill: isDarkMode ? '#94a3b8' : '#64748b', fontSize: 12 }} />
+                    <Tooltip
+                      cursor={{ stroke: '#f59e0b', strokeWidth: 1 }}
+                      contentStyle={{
+                        backgroundColor: isDarkMode ? '#020617' : '#ffffff',
+                        border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+                        borderRadius: '12px',
+                        color: isDarkMode ? '#f8fafc' : '#0f172a',
+                      }}
+                    />
+                    <Area type="monotone" dataKey="expenses" stroke="#f59e0b" strokeWidth={2.5} fill="url(#expenseGradient)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className={`flex h-full w-full items-center justify-center rounded-3xl border border-dashed ${isDarkMode ? 'border-slate-700 bg-slate-950/60 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                  Loading expense trend chart when it scrolls into view...
+                </div>
+              )}
             </div>
           </section>
 
@@ -3791,40 +3841,46 @@ function App() {
                 Net profit
               </div>
             </div>
-            <div className="mt-4 h-56 w-full sm:h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData}>
-                  <defs>
-                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#818cf8" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#818cf8" stopOpacity={0.02} />
-                    </linearGradient>
-                    <linearGradient id="cogsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.03} />
-                    </linearGradient>
-                    <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#34d399" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#34d399" stopOpacity={0.03} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#cbd5e1'} strokeOpacity={0.35} />
-                  <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: isDarkMode ? '#94a3b8' : '#64748b', fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: isDarkMode ? '#94a3b8' : '#64748b', fontSize: 12 }} />
-                  <Tooltip
-                    cursor={{ stroke: isDarkMode ? '#818cf8' : '#4f46e5', strokeWidth: 1 }}
-                    contentStyle={{
-                      backgroundColor: isDarkMode ? '#020617' : '#ffffff',
-                      border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                      borderRadius: '12px',
-                      color: isDarkMode ? '#f8fafc' : '#0f172a',
-                    }}
-                  />
-                  <Area type="monotone" dataKey="revenue" stroke="#818cf8" strokeWidth={2.5} fill="url(#revenueGradient)" />
-                  <Area type="monotone" dataKey="cogs" stroke="#f59e0b" strokeWidth={2.5} fill="url(#cogsGradient)" />
-                  <Area type="monotone" dataKey="netProfit" stroke="#34d399" strokeWidth={2.5} fill="url(#profitGradient)" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div ref={revenueChartRef} className="mt-4 h-56 w-full sm:h-64">
+              {isRevenueChartVisible ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData}>
+                    <defs>
+                      <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#818cf8" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="#818cf8" stopOpacity={0.02} />
+                      </linearGradient>
+                      <linearGradient id="cogsGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.03} />
+                      </linearGradient>
+                      <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#34d399" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#34d399" stopOpacity={0.03} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#cbd5e1'} strokeOpacity={0.35} />
+                    <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: isDarkMode ? '#94a3b8' : '#64748b', fontSize: 12 }} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fill: isDarkMode ? '#94a3b8' : '#64748b', fontSize: 12 }} />
+                    <Tooltip
+                      cursor={{ stroke: isDarkMode ? '#818cf8' : '#4f46e5', strokeWidth: 1 }}
+                      contentStyle={{
+                        backgroundColor: isDarkMode ? '#020617' : '#ffffff',
+                        border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+                        borderRadius: '12px',
+                        color: isDarkMode ? '#f8fafc' : '#0f172a',
+                      }}
+                    />
+                    <Area type="monotone" dataKey="revenue" stroke="#818cf8" strokeWidth={2.5} fill="url(#revenueGradient)" />
+                    <Area type="monotone" dataKey="cogs" stroke="#f59e0b" strokeWidth={2.5} fill="url(#cogsGradient)" />
+                    <Area type="monotone" dataKey="netProfit" stroke="#34d399" strokeWidth={2.5} fill="url(#profitGradient)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className={`flex h-full w-full items-center justify-center rounded-3xl border border-dashed ${isDarkMode ? 'border-slate-700 bg-slate-950/60 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                  Loading revenue trend chart when it scrolls into view...
+                </div>
+              )}
             </div>
           </div>
 
