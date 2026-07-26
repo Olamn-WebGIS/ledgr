@@ -3618,14 +3618,6 @@ function App() {
                   </div>
                 ) : null}
 
-                <section className={`mt-4 ${hasAdSlotVisible ? '' : 'hidden'} rounded-3xl border p-4 shadow-xl ${isDarkMode ? 'border-slate-800 bg-slate-900/80 text-slate-100' : 'border-slate-200 bg-white/80 text-slate-900'}`}>
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>Sponsored</span>
-                  </div>
-                  <div id="container-61a2c10d537d409af3dbb4930b7469ae" className="mx-auto max-w-full rounded-3xl" />
-                </section>
-              </div>
-
               {settingsTab !== 'security' ? (
                 <div className="space-y-4">
                   <div className={`rounded-3xl border p-4 ${isDarkMode ? 'border-slate-800 bg-slate-950/60' : 'border-slate-200 bg-slate-50'}`}>
